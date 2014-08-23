@@ -160,10 +160,11 @@ Ext = {
 
 				tableContainer.setHTML('<div id="top-left"><a href="https://chrome.google.com/webstore/developer/dashboard"  target="_blank" title="Developer Dashboard (Gallery)" id="link-dashboard">Dashboard</a><a href="https://chrome.google.com/webstore/detail/igejgfmbjjjjplnnlgnbejpkpdajkblm" target="_blank" title="Feedback and reviews" id="link-feedback">Feedback</a></div><div id="top-right"><a title="Extension options" id="link-options">Options</a> <span id="link-extensions" class="foo" title="chrome://chrome/extensions/">Extensions</span></div><table border="0" cellspacing="0" id="table" summary="myExtensions">' +
 					(Ext.options.compact
-						? '<thead><th class="cell-img"></th><th class="sort sort-asc cell-link">Extension or Theme</th><td colspan="2" style="text-align: center;width: 135px;" class="sort cell-thead-version">Version</td><td colspan="2" style="text-align: center;" class="sort cell-thead-ratings">Ratings</td><td class="cell-comments sort"><img src="img/cell-feedback.png"></td></tr></thead>'
+						? '<thead><th class="cell-img"></th><th class="sort cell-link">Extension or Theme</th><td colspan="2" style="text-align: center;width: 135px;" class="sort cell-thead-version">Version</td><td colspan="2" style="text-align: center;" class="sort cell-thead-ratings">Ratings</td><td class="cell-comments sort"><img src="img/cell-feedback.png"></td></tr></thead>'
 						: '<thead class="thead-top"><tr><th class="cell-img"></th><th class="cell-link">&nbsp;</th><td colspan="2" class="cell-thead-asof"><dfn id="ranks-updated" title="As of: ' + Ext.getTime(Ext.ranksUpdated * 1000) + '">out of <span id="total-extensions">' + (Ext.totalExtensions || 0).toFormatted() + '</span></dfn></td><td class="cell-users"><span id="total-users">' + Ext.getTotalUsers() + '</span></td><td class="cell-installs"></td><td class="cell-ratings"></td><td class="cell-ratings-total"></td><td class="cell-comments"></td></tr></thead>' +
-						  '<thead><th class="cell-img"></th><th class="sort sort-asc cell-link">Extension or Theme</th><td class="cell-rank-popularity sort">Popularity</td><td class="cell-rank-rating sort">Ranking<td class="cell-users sort"><dfn title="(Weekly) Computed from update pings in the last week">Users</dfn></td><td class="cell-installs sort"><dfn title="Number of installs in the last week">Installs</dfn></td><td colspan="2" style="text-align: center; sort" class="sort cell-thead-ratings">Ratings</td><td class="cell-comments sort"><img src="img/cell-feedback.png"></td></tr></thead>') +
+						  '<thead><th class="cell-img"></th><th class="sort cell-link">Extension or Theme</th><td class="cell-rank-popularity sort">Popularity</td><td class="cell-rank-rating sort">Ranking<td class="cell-users sort"><dfn title="(Weekly) Computed from update pings in the last week">Users</dfn></td><td class="cell-installs sort"><dfn title="Number of installs in the last week">Installs</dfn></td><td colspan="2" style="text-align: center; sort" class="sort cell-thead-ratings">Ratings</td><td class="cell-comments sort"><img src="img/cell-feedback.png"></td></tr></thead>') +
 					'<tbody></tbody></table><span id="update"><div style="color: #999;overflow: hidden;margin-top: 10px;"><span style="float: left;"><button title="Update extensions now" id="update-now">update now</button>  <span class="foo" id="mark">Reset badges</span></span><div style="float: right; margin-top: 5px;">' + (!Ext.options.compact && this.options.interval !== -1 ? 'Auto updates every ' + this.intervals[this.options.interval] + ' - ' : '') + '<span id="last-updated"></span></div></div><div id="tip">TIP: ' + Ext.tips[Math.floor(Math.random() * Ext.tips.length)] + '</div>');
+
 				$('link-options').addEventListener('click', function() {
 					chrome.tabs.create({url: chrome.extension.getURL('options.html')});
 				});
@@ -651,6 +652,8 @@ Ext = {
 		this.options			= localStorage['options'] ? JSON.parse(localStorage['options']) : { 'desktop' : { 'comments' : true, 'ratings' : false}, 'notify' : { 'comments': true, 'ratings' : true}};
 		this.totalExtensions	= localStorage['totalExtensions'] ? parseInt(localStorage['totalExtensions']) : 0;
 
+		this.sortPreference 	= localStorage['sortPreference'] ? JSON.parse(localStorage['sortPreference']): { 'sortName' : 'cell-link', 'sortType': 'asc'};
+
 		//this.ranksUpdated		= localStorage['ranksUpdated'] ? parseInt(localStorage['ranksUpdated']) : 0;
 		// Keep it to zero for now
 		this.ranksUpdated		= 0;
@@ -693,6 +696,23 @@ Ext = {
 			// Needed
 			sorted 			= sortFn = null;
 			sortTempArray 	= null;
+
+			window.onload = (function(){
+				return function(){
+					var cellLinkHead = document.getElementsByClassName(self.sortPreference.sortName + ' sort')[0];
+					if(cellLinkHead){
+						cellLinkHead.addClass('sort-' + self.sortPreference.sortType);
+						cellLinkHead.mode = self.sortPreference.sortType;
+
+						if(self.sortPreference.sortType === 'asc' && self.sortPreference.sortName === 'cell-link'){
+							cellLinkHead.deferReverse = true;
+						}
+
+						Ext.tableSort.sort(cellLinkHead);
+					}
+				}
+			})();
+
 		}
 
 		// For starters
@@ -1149,8 +1169,6 @@ Ext.Extension = new Class({
 					$('mark').style.display = 'inline';
 				}
 			}
-
-
 
 			return this.renderElement();
 		} else {

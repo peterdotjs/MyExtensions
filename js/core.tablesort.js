@@ -5,77 +5,91 @@ TableSort = new Class({
 		useCache	: true,
 		cellRules	: {}
 	},
-	
+
 	initialize : function(element, options){
-		this.setOptions(options);		
+		this.setOptions(options);
 		this.table 			= $(element);
 		this.thead 			= $($T('thead', this.table)[this.options.theadIndex]);
 		this.tbody 			= $($T('tbody', this.table)[this.options.tbodyIndex]);
 		this.cells			= {};
-		
+
 		this.attach();
 		return this;
 	},
-		
+
 	attach : function(){
 		var self = this;
 		this.theadCells  = this.thead.getElements('th, td');
-		
-		this.thead.addEvent('click', function(event){	
+
+		this.thead.addEvent('click', function(event){
 			var cell = event.target;
 			if(!['TH','TD'].contains(cell.nodeName) || cell.nodeType !== 1) {
 				cell = cell.traverse('parentNode', null, null, function(el) { return ['TH','TD'].contains(el.nodeName);}).getLast();
 			}
-			cell.mode = cell.mode === 'asc' ? 'desc' : 'asc';
-			this.sort(cell);											
+
+			var cellClass = cell.getAttribute('class');
+
+			//fixing initial case - cell.mode is currently not toggled on user first click
+			if(!cell.mode && cellClass.indexOf('sort-asc') !== -1){
+				cell.mode = 'asc';
+			}
+
+			cell.mode = (cell.mode === 'asc') ? 'desc' : 'asc';
+			var sortName = cellClass.match('cell-[a-zA-Z-]*')[0];
+
+			if(sortName){
+				localStorage.setItem('sortPreference',JSON.stringify({'sortName':sortName, 'sortType': cell.mode}));
+			}
+
+			this.sort(cell);
 		}.bind(this));
-		
+
 		// Find the prevCell
-		
+
 		this.theadCells.each(function(cell, index) {
 			if(cell.className.indexOf('sort-') != -1) {
 				self.cell = cell;
 			}
 		});
-		
-		return this;		
+
+		return this;
 	},
-	
+
 	detach : function() {
 		this.thead.removeEvents('click');
 		return this;
 	},
-	
+
 	compare : function(input) {
 		var rule	= this.options.cellRules[this.sortIndex];
 		var type	= rule ? rule.type : null;
 		var index	= (rule ? rule.index : null) || this.sortIndex;
-		
+
 		// Try to auto-detect
 		if(!type) {
 			if(/[0-9]+$/.test(input)) {
-				type = 'numeric';		
+				type = 'numeric';
 			} else  {
 				type = 'string';
 			}
 		}
-		
+
 		// Initialize cells
 		if(!this.options.useCache) {
 			this.cells = {};
 		}
-		 
-		
-		
+
+
+
 		return function(a, b) {
 			var _fn		= rule ? rule.fn : null;
 			if(_fn) {
-				type = 'numeric';	
+				type = 'numeric';
 			}
-			
+
 			var _aCell 	= $(a.cells[index]);
-			var _bCell 	= $(b.cells[index]);		
-			
+			var _bCell 	= $(b.cells[index]);
+
 			var _a = this.cells[_aCell.uniqueID] = this.cells[_aCell.uniqueID] || ( _fn ? _fn(_aCell) : _aCell.getText());
 			var _b = this.cells[_bCell.uniqueID] = this.cells[_bCell.uniqueID] || ( _fn ? _fn(_bCell) : _bCell.getText());
 
@@ -100,49 +114,50 @@ TableSort = new Class({
 		var rule	= this.options.cellRules[cell.cellIndex];
 		if(rule === null) {
 			return false;
-		}		
-		
+		}
+
 		if(this.isSorting) {
-			return this;	
+			return this;
 		}
 		this.prevCell	= this.cell;
-		
+
 		mode = cell.mode || mode;
 		this.invokeEvent('start');
 		this.isSorting	= true;
-		
+
 		this.rows 		= $A(this.tbody.rows); // [].slice.call(this.tbody.rows, 0)
-		
+
 		this.sortIndex 	= cell.cellIndex
-		
+
 		this.rows.sort(this.compare.call(this, $(this.rows[0].cells[this.sortIndex]).getText()));
-		
-		if(mode === 'asc') {
-			this.rows.reverse();	
+
+		if(cell.deferReverse !== true) {
+			console.log('reverse');
+			this.rows.reverse();
 		}
 
 		this.rows.each(function(row) {
-			$(row).injectIn(this.tbody);					
+			$(row).injectIn(this.tbody);
 		}, this);
-		
-	
+
+
 		if(this.prevCell) {
-			
+
 			$(this.prevCell).
 			removeClass('sort-asc').
 			removeClass('sort-desc');
-			
-		
+
+
 		}
-		
-		
-		
-		
+
+
+
+
 		cell.addClass('sort-'+mode);
 		this.cell		= cell;
 		this.isSorting	= false;
-		
-		
+
+
 		return this.invokeEvent('sort',this.sortIndex, mode, cell);
 	}
 }).implement(new Options, new Events);
